@@ -24,6 +24,7 @@ void setup() {
     pinMode(PWMA_LEFT, OUTPUT);
     pinMode(PWMB_RIGHT, OUTPUT);
     pinMode(STBY_PIN, OUTPUT);
+    digitalWrite(STBY_PIN, HIGH);
     Wire.begin();
     mpu.initialize();
 
@@ -38,10 +39,7 @@ void setup() {
     Serial.println("inited");
 }
 
-void loop() {
-}
-
-ISR(TIMER1_COMPA_vect) {
+static void balance() {
     static int encoder_right_pulse_num_speed = 0;
     static float last_angle = 0.0;
     int16_t ax, ay, az, gx, gy, gz;
@@ -53,7 +51,7 @@ ISR(TIMER1_COMPA_vect) {
     last_angle = kalmanfilter_angle;
 
     const float pwm_wheel = constrain(balance_control_output, -255, 255);
-    Serial.println(pwm_wheel);
+    /* Serial.println(pwm_wheel); */
 
     /* if (motion_mode != START && motion_mode != STOP && */
     /*     (kalmanfilter_angle < balance_angle_min || balance_angle_max < kalmanfilter_angle)) { */
@@ -66,5 +64,18 @@ ISR(TIMER1_COMPA_vect) {
     digitalWrite(BIN1, back);
     analogWrite(PWMA_LEFT, back ? -pwm_wheel : pwm_wheel);
     analogWrite(PWMB_RIGHT, back ? -pwm_wheel : pwm_wheel);
+}
+
+static volatile bool do_balance = false;
+
+void loop() {
+    if (do_balance) {
+        balance();
+        do_balance = false;
+    }
+}
+
+ISR(TIMER1_COMPA_vect) {
     TIFR1 |= _BV(OCF1A);
+    do_balance = true;
 }
