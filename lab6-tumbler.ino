@@ -28,19 +28,13 @@ void setup() {
     mpu.initialize();
 
     // set compare match register for 50Hz increments
-    Serial.print("#");
     TCCR1A = 0;
-    TCCR1B = 0;
+    TCCR1B = _BV(WGM12) | _BV(CS12);      // prescale 256x + CTC
     TCNT1  = 0;
-    Serial.print("#");
     OCR1A = 16000000 / (256 * 50) - 1;
-    /* OCR1AH = 1249 >> 8; */
-    /* OCR1AL = 1249 & 0xFF; */
-    Serial.print("%");
-    TCCR1B |= _BV(WGM12) | _BV(CS12);      // prescale 256x + CTC
-    Serial.print("$");
-    Serial.print("^");
+    TIFR1 |= _BV(OCF1A);
     TIMSK1 |= _BV(OCIE1A);
+    sei();
     Serial.println("inited");
 }
 
@@ -59,6 +53,7 @@ ISR(TIMER1_COMPA_vect) {
     last_angle = kalmanfilter_angle;
 
     const float pwm_wheel = constrain(balance_control_output, -255, 255);
+    Serial.println(pwm_wheel);
 
     /* if (motion_mode != START && motion_mode != STOP && */
     /*     (kalmanfilter_angle < balance_angle_min || balance_angle_max < kalmanfilter_angle)) { */
@@ -71,4 +66,5 @@ ISR(TIMER1_COMPA_vect) {
     digitalWrite(BIN1, back);
     analogWrite(PWMA_LEFT, back ? -pwm_wheel : pwm_wheel);
     analogWrite(PWMB_RIGHT, back ? -pwm_wheel : pwm_wheel);
+    TIFR1 |= _BV(OCF1A);
 }
