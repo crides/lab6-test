@@ -14,11 +14,11 @@
 MPU6050 mpu;
 KalmanFilter kalmanfilter;
 const float dt = 0.005, Q_angle = 0.001, Q_gyro = 0.005, R_angle = 0.5, C_0 = 1, K1 = 0.05;
-const float balance_kp = 0.0, balance_kd = 0.0, balance_ki = 0.0;
+const float balance_kp = 100.0, balance_kd = 0.0, balance_ki = 0.0;
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("init");
+    /* Serial.println("init"); */
     pinMode(AIN1, OUTPUT);
     pinMode(BIN1, OUTPUT);
     pinMode(PWMA_LEFT, OUTPUT);
@@ -36,7 +36,7 @@ void setup() {
     TIFR1 |= _BV(OCF1A);
     TIMSK1 |= _BV(OCIE1A);
     sei();
-    Serial.println("inited");
+    /* Serial.println("inited"); */
 }
 
 static void balance() {
@@ -45,19 +45,20 @@ static void balance() {
     int16_t ax, ay, az, gx, gy, gz;
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     kalmanfilter.Angle(ax, ay, az, gx, gy, gz, dt, Q_angle, Q_gyro, R_angle, C_0, K1);
-    const float kalmanfilter_angle = kalmanfilter.angle;
+    const float kalmanfilter_angle = kalmanfilter.angle + 1.42;
     const float balance_control_output =
         balance_kp * kalmanfilter_angle + balance_kd * kalmanfilter.Gyro_x + balance_ki * (kalmanfilter_angle - last_angle);
     last_angle = kalmanfilter_angle;
 
     const float pwm_wheel = constrain(balance_control_output, -255, 255);
-    /* Serial.println(pwm_wheel); */
+    Serial.println(kalmanfilter_angle);
 
-    /* if (motion_mode != START && motion_mode != STOP && */
-    /*     (kalmanfilter_angle < balance_angle_min || balance_angle_max < kalmanfilter_angle)) { */
-    /*     motion_mode = STOP; */
-    /*     carStop(); */
-    /* } */
+    if (kalmanfilter_angle < -20 || 20 < kalmanfilter_angle) {
+        digitalWrite(STBY_PIN, LOW);
+        return;
+    } else {
+        digitalWrite(STBY_PIN, HIGH);
+    }
 
     const bool back = pwm_wheel < 0;
     digitalWrite(AIN1, back);
