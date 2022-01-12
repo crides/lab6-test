@@ -18,7 +18,6 @@ const float balance_kp = 14.0, balance_kd = 0.0, balance_ki = 0.0;
 
 void setup() {
     /* Serial.begin(115200); */
-    /* Serial.println("init"); */
     pinMode(AIN1, OUTPUT);
     pinMode(BIN1, OUTPUT);
     pinMode(PWMA_LEFT, OUTPUT);
@@ -32,7 +31,7 @@ void setup() {
     TCCR1A = 0;
     TCCR1B = _BV(WGM12) | _BV(CS11) | _BV(CS10);      // prescale 64x + CTC
     TCNT1  = 0;
-    OCR1A = 16000000 / (64 * 1000) - 1;
+    OCR1A = (uint16_t) (16000000 / 64 / 1000 - 1);
     TIFR1 |= _BV(OCF1A);
     TIMSK1 |= _BV(OCIE1A);
     sei();
@@ -47,11 +46,13 @@ static void balance() {
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
     kalmanfilter.Angle(ax, ay, az, gx, gy, gz, dt, Q_angle, Q_gyro, R_angle, C_0, K1);
 
+    /* Serial.println("meas"); */
     if (cycle_count < 20) {
         cycle_count ++;
         return;
     }
     cycle_count = 0;
+    /* Serial.println("bal"); */
 
     const float kalmanfilter_angle = kalmanfilter.angle + 1.42;
     const float balance_control_output =
